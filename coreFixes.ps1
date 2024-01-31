@@ -32,7 +32,7 @@ function Invoke-Sanity-Checks {
 }
 
 function CheckWingetUpdate {
-    Write-Host "We are going to check if winget is able to update it's self".
+    Write-Host "We are going to check if winget is able to update its self".
     $output = & winget update 2>&1
 
     # Check if the output contains the error message
@@ -80,6 +80,23 @@ function RepairsToRun {
     RunSFC
 }
 
+function DoSaraWork($scenario) {
+    # Define the URL for the SARA tool
+    $saraUrl = "https://aka.ms/SaRA_EnterpriseVersionFiles"
+
+    # Define the local path where you want to save the tool
+    $localPath = "C:\path\to\your\desired\location"
+
+    # Download the SARA tool
+    Invoke-WebRequest -Uri $saraUrl -OutFile "$localPath\SaRA.zip"
+
+    # Extract the ZIP file
+    Expand-Archive -Path "$localPath\SaRA.zip" -DestinationPath $localPath
+
+    # Run the SARA tool with the desired scenario
+    & "$localPath\SaraCmd.exe" -S $scenario
+}
+
 CheckSystemStatus
 #now we deal with errors
 if($global:errors -gt 0) {
@@ -88,9 +105,15 @@ if($global:errors -gt 0) {
 } else {
     #if no errors were found we should still offer to run fixes.
     Write-Host "No issues were detected." -ForegroundColor Green
-     Write-Host "Did you still want to try running our common fixes?"
+    Write-Host "Did you still want to try running our common fixes?"
     $userInput = Read-Host " (n/Y)" 
     if ($userInput -eq "y") {
         RepairsToRun
     }
+}
+
+Write-Host "Did you want Sara to reset office activation?"
+$userInput = Read-Host " (N/y)" 
+if ($userInput -eq "y") {
+    DoSaraWork("ResetOfficeActivation")
 }
