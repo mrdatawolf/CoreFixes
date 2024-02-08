@@ -85,7 +85,15 @@ function DoSaraWork($scenario) {
     $saraUrl = "https://aka.ms/SaRA_EnterpriseVersionFiles"
 
     # Define the local path where you want to save the tool
-    $localPath = "C:\path\to\your\desired\location"
+    $localPath = "~\Downloads\Sara"
+
+    #check for Sara folder and create if needed.
+    if (-not (Test-Path -Path $localPath)) {
+        New-Item -Path $localPath -ItemType Directory -Force
+    }
+
+    #Now remove any files in the $localPath
+    Get-ChildItem -Path $localPath | Remove-Item -Recurse -Force
 
     # Download the SARA tool
     Invoke-WebRequest -Uri $saraUrl -OutFile "$localPath\SaRA.zip"
@@ -94,7 +102,7 @@ function DoSaraWork($scenario) {
     Expand-Archive -Path "$localPath\SaRA.zip" -DestinationPath $localPath
 
     # Run the SARA tool with the desired scenario
-    & "$localPath\SaraCmd.exe" -S $scenario
+    & "$localPath\SaraCmd.exe" -S $scenario -AcceptEula -CloseOffice
 }
 
 CheckSystemStatus
