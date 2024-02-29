@@ -11,8 +11,9 @@ coreFixes
 notes
 
 #>
-#Requires -RunAsAdministrator
 #Patrick Moon - 2024
+Start-Process -FilePath "powershell" -ArgumentList "-File .\coreFixes.ps1" -Verb RunAs
+
 $global:errors=0;
 function Invoke-Sanity-Checks {
     # Check if the script is running in PowerShell
@@ -26,7 +27,7 @@ function Invoke-Sanity-Checks {
         $wingetCheck = Get-Command winget -ErrorAction Stop
         Write-Host "Winget is installed so we can continue." -ForegroundColor Green
     } catch {
-        Write-Host "Winget is not installed/ had an error. This is complicated. Good luck!" -ForegroundColor Red
+        Write-Host "Winget is either not installed or had an error. This is complicated. Good luck! Hint: check if App Installer is updated in the windows store" -ForegroundColor Red
         exit
     }
 }
@@ -83,24 +84,18 @@ function RepairsToRun {
 function DoSaraWork($scenario) {
     # Define the URL for the SARA tool
     $saraUrl = "https://aka.ms/SaRA_EnterpriseVersionFiles"
-
     # Define the local path where you want to save the tool
     $localPath = "~\Downloads\Sara"
-
     #check for Sara folder and create if needed.
     if (-not (Test-Path -Path $localPath)) {
         New-Item -Path $localPath -ItemType Directory -Force
     }
-
     #Now remove any files in the $localPath
     Get-ChildItem -Path $localPath | Remove-Item -Recurse -Force
-
     # Download the SARA tool
     Invoke-WebRequest -Uri $saraUrl -OutFile "$localPath\SaRA.zip"
-
     # Extract the ZIP file
     Expand-Archive -Path "$localPath\SaRA.zip" -DestinationPath $localPath
-
     # Run the SARA tool with the desired scenario
     & "$localPath\SaraCmd.exe" -S $scenario -AcceptEula -CloseOffice
 }
@@ -111,16 +106,12 @@ function RepairOutlookO365 {
     )
     # Path to OfficeClickToRun.exe (change accordingly if your path is different)
     $OfficeClickToRunPath = "C:\\Program Files\\Microsoft Office 15\\ClientX64\\OfficeClickToRun.exe"
-
     # Platform (x64 or x86)
     $Platform = "x64" # change to x86 if you're using 32-bit Office
-
     # Language culture
     $Culture = "en-us" # change to your language culture
-
     # Command to start the repair
     $Arguments = "scenario=$RepairScenario", "platform=$Platform", "culture=$Culture", "DisplayLevel=True"
-
     # Run the command
     Start-Process -FilePath $OfficeClickToRunPath -ArgumentList $Arguments -NoNewWindow
 }
