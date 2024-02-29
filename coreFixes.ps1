@@ -119,10 +119,10 @@ function RepairOutlookO365 {
     $Culture = "en-us" # change to your language culture
 
     # Command to start the repair
-    $Command = "`"$OfficeClickToRunPath`" scenario=$RepairScenario platform=$Platform culture=$Culture DisplayLevel=True"
+    $Arguments = "scenario=$RepairScenario", "platform=$Platform", "culture=$Culture", "DisplayLevel=True"
 
     # Run the command
-    Invoke-Expression -Command:$Command
+    Start-Process -FilePath $OfficeClickToRunPath -ArgumentList $Arguments -NoNewWindow
 }
 
 CheckSystemStatus
