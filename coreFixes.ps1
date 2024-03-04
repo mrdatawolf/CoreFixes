@@ -27,7 +27,7 @@ function Invoke-Sanity-Checks {
         $wingetCheck = Get-Command winget -ErrorAction Stop
         Write-Host "Winget is installed so we can continue." -ForegroundColor Green
     } catch {
-        Write-Host "Winget is either not installed or had an error. This is complicated. Good luck! Hint: check if App Installer is updated in the windows store" -ForegroundColor Red
+        Write-Host "Winget is either not installed or had an error. This is complicated. Good luck! Hint: check if App Installer is updated in the windows store." -ForegroundColor Red
         exit
     }
 }
