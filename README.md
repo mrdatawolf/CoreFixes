@@ -1,7 +1,7 @@
 # CoreFixes
  checks for issues in core tools we use and attempts to fix them
 # Exe here
-[Exe version](https://github.com/mrdatawolf/CoreFixes/blob/main/coreFixesGUI.exe) 
+[Exe version](https://raw.githubusercontent.com/mrdatawolf/CoreFixes/blob/main/coreFixesGUI.exe) 
 # common solutions for first runs
 If it fails saying scripts can't be run:
 set-executionpolicy remotesigned 
