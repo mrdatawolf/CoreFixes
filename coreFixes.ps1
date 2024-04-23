@@ -121,10 +121,43 @@ function RepairOutlookO365 {
     Start-Process -FilePath $OfficeClickToRunPath -ArgumentList $Arguments -NoNewWindow
 }
 
+function FindProductCode {
+    param (
+        $applicationName = "Adobe Acrobat"
+    )
+    $products = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE (Name LIKE '%$applicationName%')"
+
+    if ($products -is [System.Array]) {
+        Write-Output "Found $($products.Count) instances of $applicationName. Please ensure only one instance is installed."
+        return $null
+    }
+
+    return $products.IdentifyingNumber
+}
+
+
+function RepairAdobe {
+    param (
+        $productCode = "AC76BA86-7AD7-FFFF-7B44-AC0F074E4100"
+    )
+
+    $command = "msiexec /fa `"$productCode`""
+    #Write-Output "Running command: $command"
+
+    $process = Start-Process -FilePath "msiexec" -ArgumentList "/fa `"$productCode`"" -PassThru -Wait
+
+    if ($process.ExitCode -eq 0) {
+        Write-Output "Repair completed successfully."
+    } else {
+        Write-Output "Repair failed with exit code $($process.ExitCode)."
+    }
+}
+
+
 CheckSystemStatus
 #now we deal with errors
 if($global:errors -gt 0) {
-    Write-Host "We found an issue so we are starting repairs!" -ForegroundColor Green
+    Write-Host "We found an issue so we are starting repairs!" -ForegroundColor Red
     RepairsToRun
     
 } else {
@@ -150,3 +183,12 @@ $userInput = Read-Host " (N/y)"
 if ($userInput -eq "y") {
     RepairOutlookO365
 }
+
+Write-Host "Did you want to try repairing Adobe reader?"
+$userInput = Read-Host " (N/y)"
+if ($userInput -eq "y") {
+    $productCode = FindProductCode
+    RepairAdobe -productCode $productCode
+}
+Write-Host "All operations you requested have completed."
+Pause
