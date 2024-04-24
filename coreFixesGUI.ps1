@@ -195,11 +195,42 @@ function Invoke-RepairOutlookO365 {
     Start-Process -FilePath $OfficeClickToRunPath -ArgumentList $Arguments -NoNewWindow
 }
 
+function FindProductCode {
+    param (
+        $applicationName = "Adobe Acrobat"
+    )
+    $products = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE (Name LIKE '%$applicationName%')"
+
+    if ($products -is [System.Array]) {
+        Write-Output "Found $($products.Count) instances of $applicationName. Please ensure only one instance is installed."
+        return $null
+    }
+
+    return $products.IdentifyingNumber
+}
+
+function RepairAdobe {
+    param (
+        $productCode = "AC76BA86-7AD7-FFFF-7B44-AC0F074E4100"
+    )
+
+    $command = "msiexec /fa `"$productCode`""
+    #Write-Output "Running command: $command"
+
+    $process = Start-Process -FilePath "msiexec" -ArgumentList "/fa `"$productCode`"" -PassThru -Wait
+
+    if ($process.ExitCode -eq 0) {
+        Write-Output "Repair completed successfully."
+    } else {
+        Write-Output "Repair failed with exit code $($process.ExitCode)."
+    }
+}
+
 #the following functions build the gui
 
 function Initialize-Form {
     param(
-        [hashtable] $ObjectDimensions = @{ Width=1024; Height=768 },
+        [hashtable] $ObjectDimensions = @{ Width=1280; Height=768 },
         [System.Windows.Forms.Form]$Form,
         [string]$Text = "My Form"
     )
@@ -314,8 +345,9 @@ $sanityButton = Initialize-Button -CurrentLocation $location -Text "Sanity Check
 $winGetUpdateButton = Initialize-Button -CurrentLocation $location -Text "Update Winget" -NewLine $false
 $systemHealthButton = Initialize-Button -CurrentLocation $location -Text "Check System Health" -NewLine $false
 $systemRepairButton = Initialize-Button -CurrentLocation $location -Text "Repair System Health" -NewLine $false
-$saraButton = Initialize-Button -CurrentLocation $location -Text "SARA office activation" -NewLine $false
-$o365Button = Initialize-Button -CurrentLocation $location -Text "o365 repair" -NewLine $true
+$saraButton = Initialize-Button -CurrentLocation $location -Text "SARA Office Activation" -NewLine $false
+$o365Button = Initialize-Button -CurrentLocation $location -Text "O365 Repair" -NewLine $false
+$adobeButton = Initialize-Button -CurrentLocation $location -Text "Adobe Reader Repair" -NewLine $true
 $overallProgressBar = Initialize-Control -ControlType "ProgressBar" -CurrentLocation $location -Form $form
 $progressBar = Initialize-Control -ControlType "ProgressBar" -CurrentLocation $location -Form $form
 $textBox = Initialize-Control -ControlType "TextBox" -CurrentLocation $location -Form $form
@@ -403,6 +435,16 @@ $o365Button.Add_Click({
     $overallProgressBar.Value += 16
     $this.Enabled = $false
 }) 
+$adobeButton.Add_Click({
+    $progressBar.Value = 0
+    Invoke-ProgressBar -progressBar $progressBar -textBox $textBox -currentStep $i
+    Invoke-Spinner -spinnerLabel $spinnerLabel -currentStep $i
+    $productCode = FindProductCode
+    RepairAdobe -productCode $productCode
+    $progressBar.Value = 100
+    $overallProgressBar.Value += 16
+    $this.Enabled = $false
+})
 
 $form.Controls.Add($sanityButton)
 $form.Controls.Add($winGetUpdateButton)
@@ -410,6 +452,7 @@ $form.Controls.Add($systemHealthButton)
 $form.Controls.Add($systemRepairButton)
 $form.Controls.Add($saraButton)
 $form.Controls.Add($o365Button)
+$form.Controls.Add($adobeButton)
 $form.Controls.Add($overallProgressBar)
 $form.Controls.Add($progressBar)
 $form.Controls.Add($textBox)
