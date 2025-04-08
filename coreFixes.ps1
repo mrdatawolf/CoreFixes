@@ -62,7 +62,6 @@ function RunSFC {
 }
 
 function RunSystemRepairFixes {
-     Repair-WindowsImage -Online -CheckHealth
      DISM.exe /Online /Cleanup-image /RestoreHealth
 }
 
@@ -83,6 +82,7 @@ function CheckSystemStatus {
 }
 function RepairsToRun {
     ResetIECPL
+    RunSystemRepairFixes
     RunSFC
 }
 
@@ -119,6 +119,19 @@ function RepairOutlookO365 {
     $Arguments = "scenario=$RepairScenario", "platform=$Platform", "culture=$Culture", "DisplayLevel=True"
     # Run the command
     Start-Process -FilePath $OfficeClickToRunPath -ArgumentList $Arguments -NoNewWindow
+}
+
+function RemoveAndBlockNewOutlook {
+    # Path to the registry key
+    $regPath = "HKEY_LOCAL_MACHINE \ SOFTWARE \ Microsoft \ WindowsUpdate \Orchestrator \UScheduler_Oobe"
+    # Create the registry key if it doesn't exist
+    if (-not (Test-Path $regPath)) {
+        New-Item -Path $regPath -Force
+    }
+    # Set the registry value to block new Outlook
+    Set-ItemProperty -Path $regPath -Name "BlockedOobeUpdaters" -Value [“MS_Outlook”] -Type REG_SZ
+
+    Remove-AppxProvisionedPackage -AllUsers -Online -PackageName (Get-AppxPackage Microsoft.OutlookForWindows).PackageFullName
 }
 
 function FindProductCode {
@@ -190,5 +203,12 @@ if ($userInput -eq "y") {
     $productCode = FindProductCode
     RepairAdobe -productCode $productCode
 }
+
+Write-Host "Did you want to remove the new Outlook?"
+$userInput = Read-Host " (N/y)"
+if ($userInput -eq "y") {
+    RemoveAndBlockNewOutlook
+}
+
 Write-Host "All operations you requested have completed."
 Pause
