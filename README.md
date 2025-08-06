@@ -22,5 +22,6 @@ To run an unsigned script, use the Unblock-File cmdlet or use the following proc
 3. Right-click the script file, and then click Properties.
 4. Click Unblock.
 # note you can not run this in the blue powershell console as admin, it will open multiple windows.
+<!-- Purpose: Set of processes to fix common issues with Windows 10+ -->
 <!-- INSTALL_COMMAND: curl -L -o coreFixes.ps1 https://github.com/mrdatawolf/CoreFixes/raw/main/coreFixes.ps1 -->
 <!-- RUN_COMMAND: ./coreFixes.ps1 -->
