@@ -7,16 +7,40 @@ It will install the base applications we always want and will also uninstall the
 .EXAMPLE
 coreFixes
 
+.PARAMETER RunCommonFixes
+If set, will automatically run common fixes (IE Reset, DISM, SFC) without prompting
+
+.PARAMETER ResetOfficeActivation
+If set, will run SARA tool to reset Office activation
+
+.PARAMETER RepairOffice365
+If set, will run Office 365 repair
+
+.PARAMETER RepairAdobeReader
+If set, will attempt to repair Adobe Reader
+
+.PARAMETER RemoveNewOutlook
+If set, will remove and block the new Outlook app
+
 .NOTES
 notes
 
 #>
 #Patrick Moon - 2024
+param(
+    [switch]$RunCommonFixes,
+    [switch]$ResetOfficeActivation,
+    [switch]$RepairOffice365,
+    [switch]$RepairAdobeReader,
+    [switch]$RemoveNewOutlook
+)
+
+# Check if running as administrator (GUI handles elevation, this is just a warning)
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    # orginal: Start-Process -FilePath "powershell" -ArgumentList "-File .\coreSetup.ps1" -Verb RunAs
-    # We are not running as administrator, so start a new process with 'RunAs'
-    Start-Process powershell.exe "-File", ($myinvocation.MyCommand.Definition) -Verb RunAs
-    exit
+    Write-Host "WARNING: This script requires administrator privileges to run properly." -ForegroundColor Red
+    Write-Host "Please run PowerShell as Administrator or use the GUI which handles elevation automatically." -ForegroundColor Yellow
+    $null = Read-Host "Press Enter to exit"
+    exit 1
 }
 
 $global:errors=0;
@@ -181,48 +205,151 @@ function RepairAdobe {
 }
 
 
-CheckSystemStatus
-#now we deal with errors
-if($global:errors -gt 0) {
-    Write-Host "We found an issue so we are starting repairs!" -ForegroundColor Red
-    RepairsToRun
-    
-} else {
-    #if no errors were found we should still offer to run fixes.
-    Write-Host "No issues were detected." -ForegroundColor Green
-    Write-Host "Did you still want to try running our common fixes?"
-    $userInput = Read-Host " (n/Y)" 
-    if ($userInput -eq "n") {
-        Write-Host "No problem, we will skip running those repairs!" -ForegroundColor Green
-    } else {
-        RepairsToRun
+# Check if any parameters were provided (GUI mode)
+$guiMode = $RunCommonFixes -or $ResetOfficeActivation -or $RepairOffice365 -or $RepairAdobeReader -or $RemoveNewOutlook
+
+if ($guiMode) {
+    # GUI mode - only run selected operations
+    Write-Host "=== Running in GUI mode - executing selected operations only ===" -ForegroundColor Cyan
+    Write-Host ""
+
+    $operationsFailed = 0
+
+    if ($RunCommonFixes) {
+        Write-Host ">>> Starting: Run Common Fixes (IE Reset, DISM, SFC)" -ForegroundColor Yellow
+        Write-Host ""
+        try {
+            RepairsToRun
+            Write-Host ""
+            Write-Host ">>> Completed: Run Common Fixes" -ForegroundColor Green
+        } catch {
+            Write-Host ""
+            Write-Host ">>> FAILED: Run Common Fixes - $_" -ForegroundColor Red
+            $operationsFailed++
+        }
+        Write-Host ""
     }
-}
 
-Write-Host "Did you want Sara to reset office activation?"
-$userInput = Read-Host " (N/y)" 
-if ($userInput -eq "y") {
-    DoSaraWork("ResetOfficeActivation")
-}
+    if ($ResetOfficeActivation) {
+        Write-Host ">>> Starting: Reset Office Activation" -ForegroundColor Yellow
+        Write-Host ""
+        try {
+            DoSaraWork("ResetOfficeActivation")
+            Write-Host ""
+            Write-Host ">>> Completed: Reset Office Activation" -ForegroundColor Green
+        } catch {
+            Write-Host ""
+            Write-Host ">>> FAILED: Reset Office Activation - $_" -ForegroundColor Red
+            $operationsFailed++
+        }
+        Write-Host ""
+    }
 
-Write-Host "Did you want to run the office365 repair?"
-$userInput = Read-Host " (N/y)" 
-if ($userInput -eq "y") {
-    RepairOutlookO365
-}
+    if ($RepairOffice365) {
+        Write-Host ">>> Starting: Repair Office 365" -ForegroundColor Yellow
+        Write-Host ""
+        try {
+            RepairOutlookO365
+            Write-Host ""
+            Write-Host ">>> Completed: Repair Office 365" -ForegroundColor Green
+        } catch {
+            Write-Host ""
+            Write-Host ">>> FAILED: Repair Office 365 - $_" -ForegroundColor Red
+            $operationsFailed++
+        }
+        Write-Host ""
+    }
 
-Write-Host "Did you want to try repairing Adobe reader?"
-$userInput = Read-Host " (N/y)"
-if ($userInput -eq "y") {
-    $productCode = FindProductCode
-    RepairAdobe -productCode $productCode
-}
+    if ($RepairAdobeReader) {
+        Write-Host ">>> Starting: Repair Adobe Reader" -ForegroundColor Yellow
+        Write-Host ""
+        $productCode = FindProductCode
+        if ($null -eq $productCode) {
+            Write-Host ""
+            Write-Host ">>> FAILED: Repair Adobe Reader - Product code not found" -ForegroundColor Red
+            $operationsFailed++
+        } else {
+            RepairAdobe -productCode $productCode
+            # Check $LASTEXITCODE or parse output to detect failure
+            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
+                Write-Host ""
+                Write-Host ">>> FAILED: Repair Adobe Reader (exit code: $LASTEXITCODE)" -ForegroundColor Red
+                $operationsFailed++
+            } else {
+                Write-Host ""
+                Write-Host ">>> Completed: Repair Adobe Reader" -ForegroundColor Green
+            }
+        }
+        Write-Host ""
+    }
 
-Write-Host "Did you want to remove the new Outlook?"
-$userInput = Read-Host " (N/y)"
-if ($userInput -eq "y") {
-    RemoveAndBlockNewOutlook
-}
+    if ($RemoveNewOutlook) {
+        Write-Host ">>> Starting: Remove New Outlook" -ForegroundColor Yellow
+        Write-Host ""
+        try {
+            RemoveAndBlockNewOutlook
+            Write-Host ""
+            Write-Host ">>> Completed: Remove New Outlook" -ForegroundColor Green
+        } catch {
+            Write-Host ""
+            Write-Host ">>> FAILED: Remove New Outlook - $_" -ForegroundColor Red
+            $operationsFailed++
+        }
+        Write-Host ""
+    }
 
-Write-Host "All operations you requested have completed."
-Pause
+    if ($operationsFailed -gt 0) {
+        Write-Host "=== WARNING: $operationsFailed operation(s) failed ===" -ForegroundColor Red
+        exit 1
+    } else {
+        Write-Host "=== All selected operations completed successfully ===" -ForegroundColor Cyan
+        exit 0
+    }
+} else {
+    # Interactive mode - run system check and prompt for each operation
+    CheckSystemStatus
+
+    #now we deal with errors
+    if($global:errors -gt 0) {
+        Write-Host "We found an issue so we are starting repairs!" -ForegroundColor Red
+        RepairsToRun
+    } else {
+        #if no errors were found we should still offer to run fixes.
+        Write-Host "No issues were detected." -ForegroundColor Green
+        Write-Host "Did you still want to try running our common fixes?"
+        $userInput = Read-Host " (n/Y)"
+        if ($userInput -eq "n") {
+            Write-Host "No problem, we will skip running those repairs!" -ForegroundColor Green
+        } else {
+            RepairsToRun
+        }
+    }
+
+    Write-Host "Did you want Sara to reset office activation?"
+    $userInput = Read-Host " (N/y)"
+    if ($userInput -eq "y") {
+        DoSaraWork("ResetOfficeActivation")
+    }
+
+    Write-Host "Did you want to run the office365 repair?"
+    $userInput = Read-Host " (N/y)"
+    if ($userInput -eq "y") {
+        RepairOutlookO365
+    }
+
+    Write-Host "Did you want to try repairing Adobe reader?"
+    $userInput = Read-Host " (N/y)"
+    if ($userInput -eq "y") {
+        $productCode = FindProductCode
+        RepairAdobe -productCode $productCode
+    }
+
+    Write-Host "Did you want to remove the new Outlook?"
+    $userInput = Read-Host " (N/y)"
+    if ($userInput -eq "y") {
+        RemoveAndBlockNewOutlook
+    }
+
+    Write-Host "All operations you requested have completed."
+    $null = Read-Host "Press Enter to continue"
+}
